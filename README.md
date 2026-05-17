@@ -1,4 +1,4 @@
-# gartebhausplaner
+# gartenhausplaner
 
 Browserbasierter 3D-Planer für Gartenhaus-Holzkonstruktionen.
 
