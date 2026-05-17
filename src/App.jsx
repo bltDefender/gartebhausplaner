@@ -19,7 +19,7 @@ const defaultForm = {
   rotZ: 0,
 }
 
-function Scene({ plate, timbers }) {
+function Scene({ plate, timbers, selectedTimberId, onSelect }) {
   return (
     <>
       <ambientLight intensity={0.6} />
@@ -29,20 +29,27 @@ function Scene({ plate, timbers }) {
         <planeGeometry args={[plate.width / 100, plate.depth / 100]} />
         <meshStandardMaterial color="#d8d8d8" />
       </mesh>
-      {timbers.map((timber) => (
-        <mesh
-          key={timber.id}
-          position={[timber.x / 100, timber.y / 100, timber.z / 100]}
-          rotation={[
-            (timber.rotX * Math.PI) / 180,
-            (timber.rotY * Math.PI) / 180,
-            (timber.rotZ * Math.PI) / 180,
-          ]}
-        >
-          <boxGeometry args={[timber.length / 100, timber.height / 100, timber.width / 100]} />
-          <meshStandardMaterial color={timber.color} />
-        </mesh>
-      ))}
+      {timbers.map((timber) => {
+        const isSelected = timber.id === selectedTimberId
+        return (
+          <mesh
+            key={timber.id}
+            position={[timber.x / 100, timber.y / 100, timber.z / 100]}
+            rotation={[
+              (timber.rotX * Math.PI) / 180,
+              (timber.rotY * Math.PI) / 180,
+              (timber.rotZ * Math.PI) / 180,
+            ]}
+            onClick={(event) => {
+              event.stopPropagation()
+              onSelect(timber.id)
+            }}
+          >
+            <boxGeometry args={[timber.length / 100, timber.height / 100, timber.width / 100]} />
+            <meshStandardMaterial color={timber.color} emissive={isSelected ? '#ffffff' : '#000000'} emissiveIntensity={isSelected ? 0.25 : 0} />
+          </mesh>
+        )
+      })}
       <OrbitControls makeDefault />
     </>
   )
@@ -55,6 +62,8 @@ function App() {
   const [selectedTypeId, setSelectedTypeId] = useState(defaultTypes[0].id)
   const [newType, setNewType] = useState({ name: '', width: 60, height: 60, color: '#2196f3' })
   const [form, setForm] = useState(defaultForm)
+  const [selectedTimberId, setSelectedTimberId] = useState(null)
+  const [editForm, setEditForm] = useState(null)
 
   const shoppingList = useMemo(() => {
     const grouped = timbers.reduce((acc, timber) => {
@@ -108,6 +117,52 @@ function App() {
     const type = timberTypes.find((item) => item.id === typeId)
     if (!type) return
     setTimbers((prev) => [...prev, createTimber(type)])
+  }
+
+  const selectTimber = (id) => {
+    const timber = timbers.find((t) => t.id === id)
+    if (!timber) return
+    setSelectedTimberId(id)
+    setEditForm({
+      length: timber.length,
+      x: timber.x,
+      y: timber.y,
+      z: timber.z,
+      rotX: timber.rotX,
+      rotY: timber.rotY,
+      rotZ: timber.rotZ,
+    })
+  }
+
+  const cancelEdit = () => {
+    setSelectedTimberId(null)
+    setEditForm(null)
+  }
+
+  const saveEdit = (event) => {
+    event.preventDefault()
+    setTimbers((prev) =>
+      prev.map((t) =>
+        t.id === selectedTimberId
+          ? {
+              ...t,
+              length: Number(editForm.length),
+              x: Number(editForm.x),
+              y: Number(editForm.y),
+              z: Number(editForm.z),
+              rotX: Number(editForm.rotX),
+              rotY: Number(editForm.rotY),
+              rotZ: Number(editForm.rotZ),
+            }
+          : t,
+      ),
+    )
+    cancelEdit()
+  }
+
+  const deleteTimber = () => {
+    setTimbers((prev) => prev.filter((t) => t.id !== selectedTimberId))
+    cancelEdit()
   }
 
   return (
@@ -293,6 +348,80 @@ function App() {
             <button type="submit">Holz hinzufügen</button>
           </form>
 
+          {editForm && (
+            <>
+              <h2>Ausgewähltes Holz bearbeiten</h2>
+              <form onSubmit={saveEdit} className="stack">
+                <label>
+                  Länge (cm)
+                  <input
+                    type="number"
+                    min="1"
+                    value={editForm.length}
+                    onChange={(event) => setEditForm((prev) => ({ ...prev, length: event.target.value }))}
+                  />
+                </label>
+                <div className="grid3">
+                  <label>
+                    X (cm)
+                    <input
+                      type="number"
+                      value={editForm.x}
+                      onChange={(event) => setEditForm((prev) => ({ ...prev, x: event.target.value }))}
+                    />
+                  </label>
+                  <label>
+                    Y (cm)
+                    <input
+                      type="number"
+                      value={editForm.y}
+                      onChange={(event) => setEditForm((prev) => ({ ...prev, y: event.target.value }))}
+                    />
+                  </label>
+                  <label>
+                    Z (cm)
+                    <input
+                      type="number"
+                      value={editForm.z}
+                      onChange={(event) => setEditForm((prev) => ({ ...prev, z: event.target.value }))}
+                    />
+                  </label>
+                </div>
+                <div className="grid3">
+                  <label>
+                    Rot X (°)
+                    <input
+                      type="number"
+                      value={editForm.rotX}
+                      onChange={(event) => setEditForm((prev) => ({ ...prev, rotX: event.target.value }))}
+                    />
+                  </label>
+                  <label>
+                    Rot Y (°)
+                    <input
+                      type="number"
+                      value={editForm.rotY}
+                      onChange={(event) => setEditForm((prev) => ({ ...prev, rotY: event.target.value }))}
+                    />
+                  </label>
+                  <label>
+                    Rot Z (°)
+                    <input
+                      type="number"
+                      value={editForm.rotZ}
+                      onChange={(event) => setEditForm((prev) => ({ ...prev, rotZ: event.target.value }))}
+                    />
+                  </label>
+                </div>
+                <div className="grid2">
+                  <button type="submit">Speichern</button>
+                  <button type="button" onClick={cancelEdit}>Abbrechen</button>
+                </div>
+                <button type="button" className="delete-btn" onClick={deleteTimber}>Holz entfernen</button>
+              </form>
+            </>
+          )}
+
           <h2>Einkaufsliste</h2>
           <ul className="shopping-list">
             {shoppingList.length === 0 && <li>Noch keine Hölzer platziert.</li>}
@@ -313,7 +442,7 @@ function App() {
               addTimberFromType(droppedTypeId)
             }}
           >
-            <Scene plate={plate} timbers={timbers} />
+            <Scene plate={plate} timbers={timbers} selectedTimberId={selectedTimberId} onSelect={selectTimber} />
           </Canvas>
         </section>
       </section>
